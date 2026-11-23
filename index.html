@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="乘法小島">
+<meta name="theme-color" content="#2F9BE8">
+<style>*,*::before,*::after{box-sizing:border-box}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>乘法小島</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;800&family=Noto+Sans+TC:wght@500;700;900&display=swap">
+<style>
+/* Layout: one-screen tablet app; island map -> activity -> reward. Single bright look on purpose. */
+:root{
+  --sea:#2F9BE8; --sea-deep:#1C6FB8; --sky:#DDF1FF; --sand:#FFE7A8;
+  --sun:#FFC531; --coral:#FF6F61; --leaf:#24B47E; --grape:#7C5CE6;
+  --ink:#1E2B45; --ink-soft:#56657F; --card:#FFFFFF; --line:#C9DDF0;
+  --bronze:#E09A55; --silver:#A9BBCF; --gold:#FFC531; --off:#E3EAF2;
+  --f-head:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+  --f-num:"Baloo 2","Noto Sans TC",system-ui,sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{background:linear-gradient(180deg,var(--sky) 0%,#C4E6FF 100%);color:var(--ink);font-family:var(--f-head);font-size:18px;-webkit-tap-highlight-color:transparent;overflow-x:hidden}
+#app{min-height:100%;max-width:1100px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 120px;display:flex;flex-direction:column;gap:16px}
+button{font:inherit;color:inherit;border:0;cursor:pointer;touch-action:manipulation}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:4px solid var(--grape);outline-offset:3px}
+h1,h2,h3{margin:0;text-wrap:balance}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.spacer{flex:1}
+.pill{background:var(--card);border-radius:999px;padding:8px 16px;font-weight:700;display:inline-flex;align-items:center;gap:8px;box-shadow:0 3px 0 var(--line)}
+.btn{background:var(--card);border-radius:20px;padding:14px 22px;font-weight:900;font-size:20px;box-shadow:0 5px 0 var(--line);transition:transform .08s}
+.btn:active{transform:translateY(4px);box-shadow:0 1px 0 var(--line)}
+.btn.primary{background:var(--sea);color:#fff;box-shadow:0 5px 0 var(--sea-deep)}
+.btn.go{background:var(--leaf);color:#fff;box-shadow:0 5px 0 #17845B}
+.btn.small{font-size:16px;padding:10px 16px;border-radius:14px}
+.icon-btn{width:56px;height:56px;border-radius:18px;background:var(--card);font-size:26px;box-shadow:0 4px 0 var(--line);display:grid;place-items:center}
+.title{font-size:clamp(30px,5vw,48px);font-weight:900;color:var(--sea-deep);letter-spacing:.04em}
+.sub{color:var(--ink-soft);font-weight:500}
+
+/* who */
+.who-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}
+.who{background:var(--card);border-radius:32px;padding:28px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:0 8px 0 var(--line)}
+.who .av{font-size:84px;line-height:1}
+.who .nm{font-size:28px;font-weight:900}
+.hold{position:relative;overflow:hidden}
+.hold i{position:absolute;left:0;bottom:0;height:5px;width:0;background:var(--grape);transition:width 1.6s linear}
+.hold.on i{width:100%}
+
+/* map */
+.sea{position:relative;background:radial-gradient(circle at 20% 10%,#6CC3FF 0,var(--sea) 55%,var(--sea-deep) 100%);border-radius:36px;padding:28px 18px;overflow:hidden}
+.islands{position:relative;display:grid;grid-template-columns:repeat(4,1fr);gap:22px 14px}
+@media (max-width:720px){.islands{grid-template-columns:repeat(2,1fr)}}
+.island{position:relative;background:var(--sand);border-radius:46% 54% 50% 50%/55% 50% 50% 45%;padding:16px 8px 14px;display:flex;flex-direction:column;align-items:center;gap:6px;box-shadow:0 8px 0 #E2BE62,0 14px 24px rgba(0,40,90,.25);min-height:150px;justify-content:center}
+.island:nth-child(even){transform:translateY(16px)}
+.island .tb{font-family:var(--f-num);font-size:54px;font-weight:800;line-height:.9;color:var(--ink)}
+.island .lb{font-weight:900;font-size:15px}
+.island.locked{filter:grayscale(1);opacity:.55}
+.island .lock{position:absolute;top:6px;right:12px;font-size:22px}
+.island .ic{position:absolute;top:2px;left:10px;font-size:28px}
+.stars9{display:flex;gap:3px;flex-wrap:wrap;justify-content:center;max-width:140px}
+.stars9 b{width:12px;height:12px;border-radius:50%;background:#fff;box-shadow:inset 0 -2px 0 rgba(0,0,0,.12)}
+.stars9 b.l1{background:var(--bronze)}.stars9 b.l2{background:var(--silver)}.stars9 b.l3{background:var(--gold)}
+.island.next::after{content:"下一站";position:absolute;bottom:-12px;background:var(--coral);color:#fff;font-size:13px;font-weight:900;padding:2px 10px;border-radius:999px}
+.wave{position:absolute;inset:auto -10% -30px;height:60px;background:repeating-radial-gradient(circle at 30px 0,rgba(255,255,255,.18) 0 18px,transparent 19px 40px);background-size:60px 60px;opacity:.7;pointer-events:none}
+.dojo{display:flex;align-items:center;gap:8px}
+.dojo .dots{display:flex;gap:5px}
+.dojo .dots b{width:16px;height:16px;border-radius:50%;background:var(--off)}
+.dojo .dots b.on{background:var(--leaf)}
+
+/* sheet */
+.sheet-bg{position:fixed;inset:0;background:rgba(20,40,70,.45);display:grid;place-items:end center;z-index:20;padding:0 max(12px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px))}
+.sheet{background:var(--card);width:min(760px,100%);border-radius:32px;padding:22px;display:flex;flex-direction:column;gap:16px;animation:up .25s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:0}}
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:12px}
+.mode{border-radius:24px;padding:18px 10px;display:flex;flex-direction:column;align-items:center;gap:6px;font-weight:900;font-size:20px;color:#fff}
+.mode span{font-size:40px}
+.mode small{font-weight:500;font-size:14px;opacity:.95}
+.m-count{background:var(--leaf);box-shadow:0 6px 0 #17845B}
+.m-chant{background:var(--grape);box-shadow:0 6px 0 #5B3FC0}
+.m-choice{background:var(--sea);box-shadow:0 6px 0 var(--sea-deep)}
+.m-pad{background:var(--coral);box-shadow:0 6px 0 #D24D41}
+.m-challenge{background:#F59E0B;box-shadow:0 6px 0 #C47A05}
+
+/* play */
+.prog{display:flex;gap:6px;flex-wrap:wrap}
+.prog b{width:22px;height:22px;border-radius:50%;background:var(--card);box-shadow:inset 0 0 0 3px var(--line)}
+.prog b.ok{background:var(--leaf);box-shadow:none}
+.prog b.mid{background:var(--sun);box-shadow:none}
+.prog b.now{box-shadow:inset 0 0 0 4px var(--sea)}
+.stage{background:var(--card);border-radius:32px;padding:22px 18px;display:flex;flex-direction:column;align-items:center;gap:18px;box-shadow:0 8px 0 var(--line);position:relative}
+.ctx{font-size:22px;font-weight:700;text-align:center}
+.eq{font-family:var(--f-num);font-weight:800;font-size:clamp(56px,11vw,104px);line-height:1;display:flex;align-items:center;gap:.25em;color:var(--ink)}
+.eq .q{color:var(--coral);min-width:1.2em;text-align:center;border-bottom:6px solid currentColor;line-height:.95}
+.eq .q.ok{color:var(--leaf)}
+.choices{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;width:100%}
+.choice{font-family:var(--f-num);font-weight:800;font-size:clamp(40px,7vw,60px);min-width:140px;padding:10px 26px;border-radius:26px;background:var(--sky);box-shadow:0 7px 0 var(--line);color:var(--ink)}
+.choice.bad{opacity:.3;pointer-events:none}
+.choice.right{background:var(--leaf);color:#fff;box-shadow:0 7px 0 #17845B}
+.choice.glow{animation:glow 1s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:0 7px 0 var(--line),0 0 0 8px rgba(36,180,126,.4)}}
+.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-10px)}75%{transform:translateX(10px)}}
+.pad{display:grid;grid-template-columns:repeat(3,minmax(72px,110px));gap:12px}
+.pad button{font-family:var(--f-num);font-weight:800;font-size:38px;height:76px;border-radius:22px;background:var(--sky);box-shadow:0 6px 0 var(--line)}
+.pad .ok{background:var(--leaf);color:#fff;box-shadow:0 6px 0 #17845B}
+.pad .del{background:#FFE1DD}
+.hint{width:100%;background:#FFF6D6;border-radius:22px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:10px}
+.hint .say{font-size:22px;font-weight:900;color:#8A5A00;text-align:center}
+.groups{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.grp{position:relative;background:var(--card);border:3px dashed var(--line);border-radius:18px;padding:8px;display:grid;grid-template-columns:repeat(var(--cols,3),auto);gap:2px;font-size:26px;line-height:1.1;min-width:64px;justify-items:center}
+.grp.dot{grid-template-columns:repeat(var(--cols,3),20px);gap:5px;padding:12px 12px 18px}
+.grp.dot i{width:20px;height:20px;border-radius:50%;background:var(--coral);display:block}
+.grp .cum{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);background:var(--sea);color:#fff;font-family:var(--f-num);font-weight:800;font-size:18px;padding:0 10px;border-radius:999px;line-height:1.5}
+button.grp{font-size:clamp(30px,4.6vw,42px);padding:12px 14px 18px;border-radius:24px}
+button.grp.tapped{border:3px solid var(--leaf);background:#E3F8EF}
+button.grp.tapped .cum{background:var(--leaf)}
+button.grp:not(.tapped){animation:bob 1.6s ease-in-out infinite}
+@keyframes bob{50%{transform:translateY(-4px)}}
+.feedback{font-size:26px;font-weight:900;color:var(--leaf);text-align:center}
+.chant{font-size:24px;font-weight:900;color:var(--grape)}
+.combo{position:absolute;top:-18px;right:18px;background:var(--coral);color:#fff;font-weight:900;padding:6px 14px;border-radius:999px;animation:pop .4s}
+@keyframes pop{from{transform:scale(.3)}70%{transform:scale(1.15)}}
+.timer{height:16px;border-radius:999px;background:var(--card);overflow:hidden;flex:1;min-width:120px;box-shadow:inset 0 0 0 3px var(--line)}
+.timer i{display:block;height:100%;background:linear-gradient(90deg,var(--leaf),var(--sun));transition:width .25s linear}
+
+/* chant list */
+.rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px;width:100%}
+.row{display:flex;align-items:center;gap:12px;background:var(--sky);border-radius:18px;padding:10px 16px;text-align:left}
+.row.now{background:var(--sun)}
+.row .e{font-family:var(--f-num);font-weight:800;font-size:30px;flex:0 0 auto}
+.row .k{font-weight:900;font-size:20px;color:var(--grape)}
+.row .hid{background:var(--grape);color:#fff;border-radius:12px;padding:0 14px;font-family:var(--f-num);font-weight:800;font-size:26px}
+.row .self{display:flex;gap:8px;margin-left:auto}
+.row .self button{border-radius:12px;padding:6px 12px;font-weight:900;font-size:16px;background:var(--card)}
+.row.yes{background:#D7F5E8}.row.again{background:#FFE9C7}
+
+/* mascot */
+.mascot{position:fixed;left:max(12px,env(safe-area-inset-left,0px));bottom:max(10px,env(safe-area-inset-bottom,0px));display:flex;align-items:flex-end;gap:8px;z-index:10;pointer-events:none}
+.mascot svg{width:84px;height:84px;filter:drop-shadow(0 6px 0 rgba(0,0,0,.12))}
+.bubble{background:var(--card);border-radius:20px 20px 20px 4px;padding:10px 16px;font-weight:900;font-size:19px;max-width:min(60vw,420px);box-shadow:0 4px 0 var(--line);margin-bottom:44px}
+.bubble:empty{display:none}
+.mascot.jump svg{animation:jump .5s}
+@keyframes jump{40%{transform:translateY(-18px) rotate(-6deg)}}
+
+/* reward */
+.big-stars{display:flex;gap:14px;font-size:clamp(64px,12vw,110px);line-height:1}
+.big-stars span{animation:pop .5s backwards}
+.big-stars span.off{filter:grayscale(1);opacity:.3}
+.stickers{display:flex;gap:16px;flex-wrap:wrap;justify-content:center}
+.sticker{font-size:72px;width:120px;height:120px;border-radius:50%;background:var(--sky);box-shadow:0 6px 0 var(--line);display:grid;place-items:center}
+.sticker:hover{transform:rotate(-6deg)}
+.book{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));gap:10px;width:100%}
+.book span{font-size:46px;background:var(--sky);border-radius:18px;display:grid;place-items:center;aspect-ratio:1}
+.dojo-card{background:linear-gradient(135deg,var(--leaf),#1E9E6E);color:#fff;border-radius:30px;padding:24px;text-align:center;display:flex;flex-direction:column;gap:8px;align-items:center}
+.dojo-card .huge{font-size:40px;font-weight:900}
+
+/* teacher */
+.panel{background:var(--card);border-radius:24px;padding:18px;display:flex;flex-direction:column;gap:14px}
+.panel h3{font-size:20px}
+.field{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.field>label{font-weight:700;min-width:130px}
+.chip{border-radius:999px;padding:8px 16px;font-weight:900;background:var(--off);color:var(--ink-soft)}
+.chip.on{background:var(--sea);color:#fff}
+input[type=text]{font:inherit;padding:10px 14px;border-radius:14px;border:2px solid var(--line);min-width:0;width:220px;max-width:100%}
+.tabs{display:flex;gap:10px;flex-wrap:wrap}
+.grid-wrap{overflow-x:auto}
+table{border-collapse:collapse;font-size:15px}
+th,td{padding:6px 8px;text-align:center;border-bottom:1px solid var(--off);white-space:nowrap}
+td.c{font-family:var(--f-num);font-weight:800;border-radius:8px}
+.note{font-size:14px;color:var(--ink-soft)}
+textarea{width:100%;min-height:120px;font:14px/1.5 ui-monospace,monospace;border-radius:12px;border:2px solid var(--line);padding:10px}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:30}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div id="app"></div>
+<div class="mascot" id="mascot" aria-live="polite">
+  <svg viewBox="0 0 100 100" aria-hidden="true">
+    <path d="M50 6l12 25 27 3-20 19 6 27-25-14-25 14 6-27L11 34l27-3z" fill="#FFC531" stroke="#E7A400" stroke-width="4" stroke-linejoin="round"/>
+    <circle cx="40" cy="48" r="5" fill="#1E2B45"/><circle cx="60" cy="48" r="5" fill="#1E2B45"/>
+    <circle cx="42" cy="46" r="1.6" fill="#fff"/><circle cx="62" cy="46" r="1.6" fill="#fff"/>
+    <path d="M41 60q9 8 18 0" stroke="#1E2B45" stroke-width="4" fill="none" stroke-linecap="round"/>
+    <circle cx="32" cy="58" r="4" fill="#FF8C7F" opacity=".7"/><circle cx="68" cy="58" r="4" fill="#FF8C7F" opacity=".7"/>
+  </svg>
+  <div class="bubble" id="bubble"></div>
+</div>
+<canvas id="fx"></canvas>
+
+<script>
+(function(){
+"use strict";
+const ORDER=[2,5,4,8,3,6,7,9];
+const CTX={
+  2:{g:"雙",it:"隻",nm:"襪子",ic:"🧦"},
+  5:{g:"袋",it:"顆",nm:"軟糖",ic:"🍬"},
+  4:{g:"組",it:"杯",nm:"優格",ic:"🥛"},
+  8:{g:"盒",it:"顆",nm:"章魚燒",ic:"🧆"},
+  3:{g:"枝",it:"球",nm:"冰淇淋",ic:"🍨"},
+  6:{g:"組",it:"瓶",nm:"果汁",ic:"🧃"},
+  7:{g:"盒",it:"個",nm:"甜甜圈",ic:"🍩"},
+  9:{g:"組",it:"片",nm:"拼圖",ic:"🧩"}
+};
+const MODES={
+  count:{nm:"看圖數一數",ic:"🔍",d:"一組一組數",cls:"m-count"},
+  chant:{nm:"口訣跟我念",ic:"🎵",d:"聽一聽、念一念",cls:"m-chant"},
+  choice:{nm:"選一選",ic:"🎯",d:"選出答案",cls:"m-choice"},
+  pad:{nm:"算一算",ic:"✏️",d:"自己按答案",cls:"m-pad"},
+  challenge:{nm:"挑戰自己",ic:"⚡",d:"打破自己的紀錄",cls:"m-challenge"}
+};
+const AVATARS=["🐯","🐼","🐰","🦊","🐶","🐱","🐻","🐨","🦁","🐸","🐧","🦄"];
+const STICKERS=["🐶","🐱","🐰","🦊","🐻","🐼","🐨","🐯","🦁","🐮","🐷","🐸","🐵","🐔","🐧","🐤","🦄","🐝","🦋","🐢","🐬","🐳","🦕","🐙","🦀","🐠","🌈","⭐","🚀","🚗","🚒","🎈","🍉","🍦","🍰","🌻","🍎","⚽","🎸","🦖"];
+const PRAISE=["你好棒！","答對了！","太厲害了！","你真認真！","好聰明喔！","耶！就是這樣！"];
+const CHEER=["沒關係，再試一次！","看看提示，你可以的！","慢慢想，不用急！","差一點點，加油！"];
+const DIG="〇一二三四五六七八九";
+
+function cn(n){if(n<10)return DIG[n];if(n===10)return "十";if(n<20)return "十"+DIG[n%10];return DIG[Math.floor(n/10)]+"十"+(n%10?DIG[n%10]:"");}
+function chant(a,b){const p=a*b;return DIG[a]+DIG[b]+(p<=10?"得"+cn(p):cn(p));}
+function eqSay(a,b){return cn(a)+"乘以"+cn(b)+"等於"+cn(a*b);}
+function esc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function today(){const d=new Date();return d.getFullYear()+"/"+(d.getMonth()+1)+"/"+d.getDate();}
+function nowStr(){const d=new Date();return today()+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");}
+
+/* ---------- storage ---------- */
+const KEY="mul-island-v1";
+function defSet(){return {tables:[2,5,4],modes:{count:true,chant:true,choice:true,pad:true,challenge:true},n:8,choices:3,order:"random",hintFirst:false,autoSpeak:true,dojoEvery:3,sec:60};}
+function newStudent(name,av){return {id:Math.random().toString(36).slice(2,9),name,avatar:av,set:defSet(),facts:{},log:[],stickers:[],dojo:{p:0,earned:0},best:{},stars:0};}
+function defState(){return {v:1,sound:true,students:[newStudent("同學 A","🐯"),newStudent("同學 B","🐼")]};}
+let S;
+try{S=JSON.parse(localStorage.getItem(KEY));}catch(e){S=null;}
+if(!S||!Array.isArray(S.students))S=defState();
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}}
+
+/* ---------- sound & speech ---------- */
+let ac=null;
+function tone(fs,dur){if(!S.sound)return;dur=dur||0.12;try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();fs.forEach((f,i)=>{const o=ac.createOscillator(),g=ac.createGain();o.type="sine";o.frequency.value=f;const t=ac.currentTime+i*dur;g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(0.22,t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t+dur*1.8);o.connect(g).connect(ac.destination);o.start(t);o.stop(t+dur*2);});}catch(e){}}
+const sfx={ok:()=>tone([660,880,1320]),no:()=>tone([392,330],0.15),tap:()=>tone([740],0.06),win:()=>tone([523,659,784,1047,1319],0.11)};
+let voice=null;
+function pickVoice(){try{const vs=speechSynthesis.getVoices();voice=vs.find(v=>/zh[-_]TW/i.test(v.lang))||vs.find(v=>/zh[-_](HK|Hant)/i.test(v.lang))||vs.find(v=>/^zh/i.test(v.lang))||null;}catch(e){}}
+if("speechSynthesis" in window){pickVoice();try{speechSynthesis.onvoiceschanged=pickVoice;}catch(e){}}
+function say(text){return new Promise(res=>{if(!("speechSynthesis" in window))return res();let done=false;const fin=()=>{if(!done){done=true;res();}};try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);u.lang="zh-TW";if(voice)u.voice=voice;u.rate=0.85;u.onend=fin;u.onerror=fin;speechSynthesis.speak(u);setTimeout(fin,1500+text.length*450);}catch(e){fin();}});}
+function auto(text){if(stu()&&stu().set.autoSpeak)say(text);}
+
+/* ---------- mascot & confetti ---------- */
+let bubbleT=null;
+function talk(msg,jump){const b=document.getElementById("bubble"),m=document.getElementById("mascot");b.textContent=msg||"";clearTimeout(bubbleT);if(msg)bubbleT=setTimeout(()=>{b.textContent="";},3800);if(jump){m.classList.remove("jump");void m.offsetWidth;m.classList.add("jump");}}
+const fx=document.getElementById("fx"),cx=fx.getContext("2d");let parts=[],raf=0;
+const reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
+function burst(n){if(reduce)return;fx.width=innerWidth;fx.height=innerHeight;const cols=["#FFC531","#FF6F61","#24B47E","#2F9BE8","#7C5CE6"];for(let i=0;i<n;i++)parts.push({x:innerWidth/2,y:innerHeight*0.45,vx:(Math.random()-0.5)*14,vy:-Math.random()*14-4,s:Math.random()*8+5,c:cols[i%5],r:Math.random()*6,life:90});if(!raf)loop();clearTimeout(burst.t);burst.t=setTimeout(()=>{parts=[];cancelAnimationFrame(raf);raf=0;cx.clearRect(0,0,fx.width,fx.height);},2600);}
+function loop(){cx.clearRect(0,0,fx.width,fx.height);parts=parts.filter(p=>p.life-->0);parts.forEach(p=>{p.vy+=0.45;p.x+=p.vx;p.y+=p.vy;p.r+=0.15;cx.save();cx.translate(p.x,p.y);cx.rotate(p.r);cx.fillStyle=p.c;cx.fillRect(-p.s/2,-p.s/4,p.s,p.s/2);cx.restore();});raf=parts.length?requestAnimationFrame(loop):0;if(!raf)cx.clearRect(0,0,fx.width,fx.height);}
+
+/* ---------- app state ---------- */
+const app=document.getElementById("app");
+let view="who",sid=null,cur=null,sheet=null,teacherTab=0,timerId=null;
+function stu(){return S.students.find(s=>s.id===sid)||null;}
+function go(v){view=v;sheet=null;clearInterval(timerId);render();window.scrollTo(0,0);}
+
+function factLevel(st,t,m){const f=st.facts[t+"x"+m];return f?Math.min(3,f.s||0):0;}
+function stars9(st,t){let h="";for(let m=1;m<=9;m++)h+=`<b class="l${factLevel(st,t,m)}"></b>`;return `<div class="stars9" aria-label="${t} 的乘法星星">${h}</div>`;}
+
+/* ---------- screens ---------- */
+function render(){
+  const fns={who:rWho,map:rMap,play:rPlay,end:rEnd,book:rBook,teacher:rTeacher};
+  app.innerHTML=(fns[view]||rWho)();
+  if(sheet)app.insertAdjacentHTML("beforeend",sheet);
+  bindHold();
+}
+
+function rWho(){
+  return `<div class="bar"><div><div class="title">乘法小島</div><div class="sub">二上 2、5、4、8、3、6、7、9 的乘法</div></div><div class="spacer"></div>
+  <button class="pill hold" id="hold" aria-label="老師設定，按住兩秒">⚙️ 老師（按住 2 秒）<i></i></button></div>
+  <h2 style="font-size:26px">你是誰？點一下你的名字</h2>
+  <div class="who-grid">${S.students.map(s=>`<button class="who" data-act="pick" data-id="${s.id}"><div class="av">${s.avatar}</div><div class="nm">${esc(s.name)}</div><div class="pill" style="box-shadow:none;background:var(--sky)">⭐ <span class="num">${s.stars}</span>　貼紙 <span class="num">${s.stickers.length}</span></div></button>`).join("")}</div>`;
+}
+
+function rMap(){
+  const st=stu();const set=st.set;
+  const next=ORDER.find(t=>set.tables.includes(t)&&[1,2,3,4,5,6,7,8,9].some(m=>factLevel(st,t,m)<3));
+  const dots=Array.from({length:set.dojoEvery},(_,i)=>`<b class="${i<st.dojo.p?"on":""}"></b>`).join("");
+  return `<div class="bar"><button class="icon-btn" data-act="who" aria-label="換人">↩</button>
+  <div class="pill" style="font-size:22px">${st.avatar} ${esc(st.name)}</div><div class="spacer"></div>
+  <div class="pill">⭐ <span class="num">${st.stars}</span></div>
+  <button class="pill" data-act="book">📒 貼紙本 <span class="num">${st.stickers.length}</span></button>
+  <div class="pill dojo" title="Dojo 點數進度">Dojo <span class="dots">${dots}</span></div></div>
+  <div class="sea"><div class="islands">${ORDER.map(t=>{const open=set.tables.includes(t);return `<button class="island ${open?"":"locked"} ${t===next?"next":""}" data-act="island" data-t="${t}" ${open?"":"aria-disabled=\"true\""}>
+    <span class="ic" aria-hidden="true">${CTX[t].ic}</span>${open?"":`<span class="lock" aria-hidden="true">🔒</span>`}
+    <span class="tb">${t}</span><span class="lb">${t} 的乘法</span>${stars9(st,t)}</button>`;}).join("")}</div><div class="wave"></div></div>
+  <div class="note" style="text-align:center">每顆小圓點是一題：<b style="color:var(--bronze)">銅</b> → <b style="color:var(--silver)">銀</b> → <b style="color:#C99400">金</b>，連續自己答對就會變亮！</div>`;
+}
+
+function modeSheet(t){
+  const st=stu();const c=CTX[t];
+  const ms=Object.keys(MODES).filter(k=>st.set.modes[k]);
+  return `<div class="sheet-bg" data-act="closesheet"><div class="sheet" role="dialog" aria-label="${t} 的乘法">
+  <div class="bar"><h2 style="font-size:28px">${c.ic} ${t} 的乘法</h2><div class="spacer"></div><button class="icon-btn" data-act="closesheet" aria-label="關閉">✕</button></div>
+  <div class="sub">1 ${c.g}${c.nm}有 ${t} ${c.it}。你想怎麼練習？</div>
+  <div class="modes">${ms.map(k=>`<button class="mode ${MODES[k].cls}" data-act="start" data-t="${t}" data-m="${k}"><span aria-hidden="true">${MODES[k].ic}</span>${MODES[k].nm}<small>${MODES[k].d}${k==="challenge"&&st.best[t]?`・紀錄 ${st.best[t]} 題`:""}</small></button>`).join("")}</div></div></div>`;
+}
+
+/* ---------- build a round ---------- */
+function pickList(st,t,n,order){
+  if(order==="seq"){const a=[];for(let i=0;i<n;i++)a.push(i%9+1);return a;}
+  const ms=[1,2,3,4,5,6,7,8,9];
+  const weak=shuffle(ms.filter(m=>factLevel(st,t,m)<3)),strong=shuffle(ms.filter(m=>factLevel(st,t,m)>=3));
+  const base=weak.concat(strong);const out=[];
+  while(out.length<n)out.push(...base);
+  return shuffle(out.slice(0,n));
+}
+function start(t,mode){
+  const st=stu();const set=st.set;
+  cur={t,mode,i:0,res:[],combo:0,t0:Date.now(),wrong:0,hint:set.hintFirst?1:0,used:false,bad:[],done:false,pad:"",phase:"tap",tapped:0};
+  if(mode==="chant"){cur.phase="listen";cur.marks={};cur.now=0;}
+  else if(mode==="challenge"){cur.list=[];cur.left=set.sec;cur.score=0;cur.total=0;nextChallenge();}
+  else cur.list=pickList(st,t,mode==="count"?Math.min(set.n,6):set.n,mode==="count"?"seq-short":set.order);
+  if(mode==="count")cur.list=countList(st,set);
+  go("play");
+  if(mode==="challenge")startTimer();
+  else if(mode!=="chant")speakQ();
+  else talk("先聽一次口訣，再考考自己！",true);
+}
+function countList(st,set){const n=Math.min(set.n,6);if(set.order==="seq"){const a=[];for(let i=0;i<n;i++)a.push(i%9+1);return a;}return shuffle([1,2,3,4,5,6,7,8,9]).slice(0,n);}
+function nextChallenge(){const st=stu();const pool=[];for(let m=1;m<=9;m++)pool.push(m);cur.list[cur.i]=pool[Math.floor(Math.random()*9)];if(cur.i>0&&cur.list[cur.i]===cur.list[cur.i-1])cur.list[cur.i]=cur.list[cur.i]%9+1;cur.bad=[];cur.done=false;}
+function startTimer(){clearInterval(timerId);timerId=setInterval(()=>{cur.left--;const bar=document.getElementById("tbar");if(bar)bar.style.width=(cur.left/stu().set.sec*100)+"%";const lt=document.getElementById("tleft");if(lt)lt.textContent=cur.left;if(cur.left<=0){clearInterval(timerId);finish();}},1000);}
+function speakQ(){const t=cur.t,m=cur.list[cur.i],c=CTX[t];
+  if(cur.mode==="count")auto(`1${c.g}${c.nm}有${cn(t)}${c.it}，一${c.g}一${c.g}點點看`);
+  else auto(cn(t)+"乘以"+cn(m)+"等於多少？");}
+
+function makeChoices(t,m,k){const p=t*m;const cand=[t*(m-1),t*(m+1),p+1,p-1,t*(m+2),p+2].filter(x=>x>0&&x!==p);const uniq=[...new Set(cand)];return shuffle([p].concat(uniq.slice(0,k-1)));}
+function makeNumChoices(m,k){const c=[m-1,m+1,m+2,m-2].filter(x=>x>=1&&x<=9);return shuffle([m].concat(c.slice(0,k-1)));}
+
+/* ---------- play screens ---------- */
+function progDots(){return `<div class="prog" aria-label="第 ${cur.i+1} 題">${cur.list.map((_,i)=>`<b class="${i<cur.res.length?(cur.res[i]?"ok":"mid"):""} ${i===cur.i?"now":""}"></b>`).join("")}</div>`;}
+function groupsHTML(t,m,opt){opt=opt||{};const c=CTX[t];const cols=(t===2||t===4)?2:3;let h=`<div class="groups" style="--cols:${cols}">`;
+  for(let g=0;g<m;g++){const cum=t*(g+1);
+    if(opt.tap){const on=g<cur.tapped;h+=`<button class="grp ${on?"tapped":""}" data-act="tapgrp" aria-label="第 ${g+1} ${c.g}">${(c.ic).repeat(t).match(/./gu).map(e=>`<span>${e}</span>`).join("")}${on?`<span class="cum">${cum}</span>`:""}</button>`;}
+    else if(opt.dots){h+=`<div class="grp dot">${"<i></i>".repeat(t)}<span class="cum">${cum}</span></div>`;}
+  }
+  return h+`</div>`;}
+
+function rPlay(){
+  if(cur.mode==="chant")return rChant();
+  if(cur.mode==="count")return rCount();
+  const t=cur.t,m=cur.list[cur.i],p=t*m,st=stu(),c=CTX[t];
+  const ch=cur.mode==="challenge";
+  let top=`<div class="bar"><button class="icon-btn" data-act="quit" aria-label="離開">✕</button>`;
+  top+=ch?`<div class="pill">⚡ 答對 <span class="num" style="font-size:24px">${cur.score}</span></div><div class="timer"><i id="tbar" style="width:${cur.left/st.set.sec*100}%"></i></div><div class="pill num"><span id="tleft">${cur.left}</span> 秒</div>`
+        :`${progDots()}<div class="spacer"></div><button class="icon-btn" data-act="speak" aria-label="念題目">🔊</button>${cur.done?"":`<button class="icon-btn" data-act="hint" aria-label="提示">💡</button>`}`;
+  top+=`</div>`;
+  let shown=cur.done?p:(cur.mode==="pad"&&cur.pad?cur.pad:"?");
+  let body=`<div class="stage">${cur.combo>=3&&!ch?`<div class="combo">連續答對 ${cur.combo} 題！🔥</div>`:""}
+    <div class="eq"><span>${t}</span><span>×</span><span>${m}</span><span>=</span><span class="q ${cur.done?"ok":""}">${shown}</span></div>`;
+  if(!ch&&cur.hint>0&&!cur.done){
+    body+=`<div class="hint"><div class="say">${t} 有 ${m} 個，${t} 個 ${t} 個數</div>${groupsHTML(t,m,{dots:true})}`;
+    if(cur.hint>=2)body+=`<div class="say">${m>1?`${t} × ${m-1} = ${t*(m-1)}，再多 1 個 ${t}`:`${t} 有 1 個，就是 ${t}`}</div>`;
+    if(cur.hint>=3)body+=`<div class="say chant">口訣：${chant(t,m)}</div>`;
+    body+=`</div>`;
+  }
+  if(cur.done&&!ch){
+    body+=`<div class="feedback">${t} × ${m} = ${p}</div><div class="chant">${chant(t,m)}</div><button class="btn go" data-act="next" style="font-size:26px">${cur.i+1<cur.list.length?"下一題 ➜":"完成！看獎勵 🎁"}</button>`;
+  }else if(cur.mode==="pad"){
+    body+=`<div class="pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-act="key" data-k="${n}">${n}</button>`).join("")}<button class="del" data-act="key" data-k="del" aria-label="刪除">⌫</button><button data-act="key" data-k="0">0</button><button class="ok" data-act="key" data-k="ok" aria-label="確定">✔</button></div>`;
+  }else{
+    if(!cur.opts)cur.opts=makeChoices(t,m,ch?3:st.set.choices);
+    body+=`<div class="choices">${cur.opts.map(v=>`<button class="choice ${cur.bad.includes(v)?"bad":""} ${cur.done&&v===p?"right":""} ${!ch&&cur.hint>=3&&v===p?"glow":""}" data-act="ans" data-v="${v}">${v}</button>`).join("")}</div>`;
+  }
+  return top+body+`</div>`;
+}
+
+function rCount(){
+  const t=cur.t,m=cur.list[cur.i],c=CTX[t],p=t*m;
+  let top=`<div class="bar"><button class="icon-btn" data-act="quit" aria-label="離開">✕</button>${progDots()}<div class="spacer"></div><button class="icon-btn" data-act="speak" aria-label="念題目">🔊</button></div>`;
+  let b=`<div class="stage"><div class="ctx">1 ${c.g}${c.nm}有 ${t} ${c.it}，${m} ${c.g}共有幾${c.it}？</div>`;
+  if(cur.phase==="tap"){b+=`<div class="sub" style="font-size:20px">👆 一${c.g}一${c.g}點點看，邊點邊數！</div>`;}
+  b+=groupsHTML(t,m,{tap:true});
+  if(cur.phase==="q1"){if(!cur.opts)cur.opts=makeNumChoices(m,stu().set.choices);
+    b+=`<div class="ctx" style="margin-top:10px">${t} 有幾個？</div><div class="choices">${cur.opts.map(v=>`<button class="choice ${cur.bad.includes(v)?"bad":""}" data-act="cans" data-v="${v}">${v} 個</button>`).join("")}</div>`;}
+  if(cur.phase==="q2"){if(!cur.opts)cur.opts=makeChoices(t,m,stu().set.choices);
+    b+=`<div class="ctx" style="margin-top:10px">${t} 的 ${m} 倍，寫成乘法是：</div><div class="eq" style="font-size:clamp(44px,8vw,80px)"><span>${t}</span><span>×</span><span>${m}</span><span>=</span><span class="q">?</span></div>
+    <div class="choices">${cur.opts.map(v=>`<button class="choice ${cur.bad.includes(v)?"bad":""} ${cur.bad.length&&v===p?"glow":""}" data-act="cans" data-v="${v}">${v}</button>`).join("")}</div>`;}
+  if(cur.phase==="done"){b+=`<div class="hint"><div class="say">${t} 有 ${m} 個，是 ${t} 的 ${m} 倍</div><div class="eq" style="font-size:clamp(44px,8vw,80px)"><span>${t}</span><span>×</span><span>${m}</span><span>=</span><span class="q ok">${p}</span></div><div class="chant">${chant(t,m)}</div></div>
+    <button class="btn go" data-act="cnext" style="font-size:26px">${cur.i+1<cur.list.length?"下一題 ➜":"完成！看獎勵 🎁"}</button>`;}
+  return top+b+`</div>`;
+}
+
+function rChant(){
+  const t=cur.t;
+  let top=`<div class="bar"><button class="icon-btn" data-act="quit" aria-label="離開">✕</button><h2 style="font-size:26px">🎵 ${t} 的口訣</h2><div class="spacer"></div>`;
+  if(cur.phase==="listen")top+=`<button class="btn primary small" data-act="playall">▶ 全部聽一次</button>`;
+  top+=`</div>`;
+  let rows="";
+  for(let m=1;m<=9;m++){
+    const mk=cur.marks[m];
+    if(cur.phase==="listen"){rows+=`<button class="row ${cur.playing===m?"now":""}" data-act="sayrow" data-m="${m}"><span class="e">${t}×${m}=${t*m}</span><span class="k">${chant(t,m)}</span></button>`;}
+    else{
+      const open=cur.open&&cur.open[m];
+      rows+=`<div class="row ${mk==="y"?"yes":mk==="n"?"again":""}"><span class="e">${t}×${m}=</span>${open?`<span class="e">${t*m}</span><span class="k">${chant(t,m)}</span>`:`<button class="hid" data-act="reveal" data-m="${m}" aria-label="翻開答案">?</button>`}
+      ${open&&!mk?`<span class="self"><button data-act="mark" data-m="${m}" data-v="y">😀 我會</button><button data-act="mark" data-m="${m}" data-v="n">🤔 再練</button></span>`:mk?`<span class="self">${mk==="y"?"😀":"💪"}</span>`:""}</div>`;
+    }
+  }
+  let b=`<div class="stage"><div class="sub" style="font-size:20px">${cur.phase==="listen"?"點一行聽一次，跟著念念看":"先在心裡說答案，再點 ? 翻開檢查，然後選「我會」或「再練」"}</div><div class="rows">${rows}</div>`;
+  if(cur.phase==="listen")b+=`<button class="btn go" data-act="chanttest" style="font-size:24px">我準備好了，考考自己 🙈</button>`;
+  return top+b+`</div>`;
+}
+
+function rEnd(){
+  const r=cur.result,st=stu();
+  let h=`<div class="stage" style="gap:20px"><h2 style="font-size:34px;color:var(--sea-deep)">${r.title}</h2>
+  <div class="big-stars">${[1,2,3].map(i=>`<span class="${i<=r.stars?"":"off"}" style="animation-delay:${i*0.18}s">⭐</span>`).join("")}</div>
+  <div class="ctx">${r.line}</div>`;
+  if(r.record)h+=`<div class="pill" style="background:var(--coral);color:#fff;font-size:22px">🏆 新紀錄！打敗了自己！</div>`;
+  if(!r.picked){h+=`<div class="ctx" style="color:var(--grape)">選一張你喜歡的貼紙！</div><div class="stickers">${r.choices.map(s=>`<button class="sticker" data-act="sticker" data-s="${s}" aria-label="貼紙 ${s}">${s}</button>`).join("")}</div>`;}
+  else{
+    h+=`<div class="ctx">你得到了 <span style="font-size:56px;vertical-align:middle">${r.picked}</span></div>`;
+    if(r.dojo)h+=`<div class="dojo-card"><div class="huge">🎉 Dojo 點數 +1</div><div style="font-size:20px;font-weight:700">拿給老師或家長看，就可以加 Dojo 點數喔！</div><div class="num" style="opacity:.9">${nowStr()}・${esc(st.name)}・今天完成 ${st.log.filter(l=>l.d.startsWith(today())).length} 回合</div></div>`;
+    else{const left=st.set.dojoEvery-st.dojo.p;h+=`<div class="sub" style="font-size:20px">再完成 <b class="num">${left}</b> 回合，就可以拿到 Dojo 點數！</div>`;}
+    h+=`<div class="bar" style="justify-content:center"><button class="btn primary" data-act="again">再玩一次 🔁</button><button class="btn" data-act="map">回到小島 🏝️</button></div>`;
+  }
+  return h+`</div>`;
+}
+
+function rBook(){const st=stu();
+  return `<div class="bar"><button class="icon-btn" data-act="map" aria-label="回去">↩</button><h2 style="font-size:28px">📒 ${esc(st.name)} 的貼紙本</h2></div>
+  <div class="stage">${st.stickers.length?`<div class="ctx">已經收集 <span class="num">${st.stickers.length}</span> 張！</div><div class="book">${st.stickers.map(s=>`<span>${s}</span>`).join("")}</div>`:`<div class="ctx">還沒有貼紙，完成一回合練習就能拿到第一張！</div>`}</div>`;}
+
+/* ---------- finish round ---------- */
+function finish(){
+  clearInterval(timerId);
+  const st=stu(),t=cur.t;let stars,line,title="完成了！",record=false,ok,total;
+  if(cur.mode==="challenge"){ok=cur.score;total=cur.total;const prev=st.best[t]||0;record=ok>prev&&ok>0;if(record)st.best[t]=ok;
+    stars=ok>=Math.max(prev,1)?3:ok>=prev*0.7?2:1;line=`${st.set.sec} 秒答對 ${ok} 題　（最佳紀錄 ${st.best[t]||0} 題）`;title=record?"太厲害了！":"挑戰完成！";}
+  else if(cur.mode==="chant"){ok=Object.values(cur.marks).filter(v=>v==="y").length;total=9;stars=ok>=8?3:ok>=5?2:1;line=`你說「我會」的有 ${ok} 題，「再練」的有 ${9-ok} 題`;}
+  else{ok=cur.res.filter(Boolean).length;total=cur.res.length;const a=ok/total;stars=a>=0.9?3:a>=0.6?2:1;line=`自己答對 ${ok} 題，共 ${total} 題`;}
+  st.stars+=stars;
+  st.log.push({d:nowStr(),t,mode:cur.mode,ok,total,sec:Math.round((Date.now()-cur.t0)/1000)});
+  if(st.log.length>500)st.log=st.log.slice(-500);
+  st.dojo.p++;let dojo=false;if(st.dojo.p>=st.set.dojoEvery){st.dojo.p=0;st.dojo.earned++;dojo=true;}
+  cur.result={stars,line,title,record,dojo,choices:shuffle(STICKERS).slice(0,3),picked:null};
+  save();view="end";render();sfx.win();burst(record||stars===3?160:90);talk(stars===3?"你超棒的！":"你很努力，好棒！",true);
+}
+
+function recordFact(t,m,first,hadWrong){const st=stu();const k=t+"x"+m;const f=st.facts[k]||{n:0,ok:0,s:0,w:0};f.n++;if(first){f.ok++;f.s=Math.min(3,(f.s||0)+1);}else if(hadWrong){f.s=0;f.w=(f.w||0)+1;}st.facts[k]=f;save();}
+
+/* ---------- interactions ---------- */
+function answer(v,btn){
+  const t=cur.t,m=cur.list[cur.i],p=t*m,ch=cur.mode==="challenge";
+  if(cur.done)return;
+  if(v===p){
+    const first=cur.wrong===0&&!cur.used;
+    recordFact(t,m,first,cur.wrong>0);
+    sfx.ok();
+    if(ch){cur.score++;cur.total++;cur.i++;cur.opts=null;nextChallenge();talk(PRAISE[Math.floor(Math.random()*PRAISE.length)]);render();return;}
+    cur.res.push(first);cur.combo=first?cur.combo+1:0;cur.done=true;
+    talk(PRAISE[Math.floor(Math.random()*PRAISE.length)],true);burst(first?50:25);render();auto(eqSay(t,m)+"，"+chant(t,m));
+  }else{
+    sfx.no();
+    if(btn){btn.classList.remove("shake");void btn.offsetWidth;btn.classList.add("shake");}
+    if(ch){recordFact(t,m,false,true);cur.total++;cur.bad=cur.opts.filter(x=>x!==p);render();talk(`${t} × ${m} = ${p}`);setTimeout(()=>{if(view!=="play")return;cur.i++;cur.opts=null;nextChallenge();render();},900);return;}
+    cur.wrong++;cur.hint=Math.min(3,cur.hint+1);cur.combo=0;
+    if(cur.mode!=="pad")cur.bad.push(v);else cur.pad="";
+    talk(CHEER[Math.floor(Math.random()*CHEER.length)]);
+    setTimeout(()=>{render();if(cur.hint>=3)say("口訣，"+chant(t,m));},cur.mode==="pad"?350:300);
+  }
+}
+function nextQ(){cur.i++;if(cur.i>=cur.list.length)return finish();Object.assign(cur,{wrong:0,hint:stu().set.hintFirst?1:0,used:false,bad:[],done:false,pad:"",opts:null,phase:"tap",tapped:0});render();speakQ();}
+
+app.addEventListener("click",e=>{
+  const el=e.target.closest("[data-act]");if(!el)return;
+  const a=el.dataset.act;
+  if(a==="closesheet"){if(e.target===el||el.tagName==="BUTTON"){sheet=null;render();}return;}
+  const st=stu();
+  switch(a){
+    case "pick":sid=el.dataset.id;go("map");talk(`嗨，${stu().name}！選一座小島吧！`,true);break;
+    case "who":sid=null;go("who");break;
+    case "map":go("map");break;
+    case "book":go("book");break;
+    case "island":{const t=+el.dataset.t;if(!st.set.tables.includes(t)){talk("這座小島還沒開放，請老師幫你打開喔！");return;}sfx.tap();sheet=modeSheet(t);render();break;}
+    case "start":sheet=null;start(+el.dataset.t,el.dataset.m);break;
+    case "quit":clearInterval(timerId);try{speechSynthesis.cancel();}catch(_){}go("map");break;
+    case "speak":if(cur.mode==="count"){const c=CTX[cur.t];say(`1${c.g}${c.nm}有${cn(cur.t)}${c.it}，${cn(cur.list[cur.i])}${c.g}共有幾${c.it}？`);}else say(cn(cur.t)+"乘以"+cn(cur.list[cur.i])+"等於多少？");break;
+    case "hint":cur.used=true;cur.hint=Math.min(3,cur.hint+1);render();if(cur.hint>=3)say("口訣，"+chant(cur.t,cur.list[cur.i]));else talk("看看提示，慢慢數！");break;
+    case "ans":answer(+el.dataset.v,el);break;
+    case "key":{const k=el.dataset.k;if(cur.done)return;if(k==="del")cur.pad=cur.pad.slice(0,-1);else if(k==="ok"){if(cur.pad)answer(+cur.pad,document.querySelector(".eq"));return;}else if(cur.pad.length<2)cur.pad+=k;sfx.tap();render();break;}
+    case "next":nextQ();break;
+    case "tapgrp":{if(cur.phase!=="tap")return;const t=cur.t,m=cur.list[cur.i];cur.tapped++;sfx.tap();say(cn(t*cur.tapped));if(cur.tapped>=m){cur.phase="q1";cur.opts=null;setTimeout(()=>auto(cn(t)+"有幾個？"),700);}render();break;}
+    case "cans":{const t=cur.t,m=cur.list[cur.i],v=+el.dataset.v,want=cur.phase==="q1"?m:t*m;
+      if(v===want){sfx.ok();burst(30);if(cur.phase==="q1"){cur.phase="q2";cur.opts=null;cur.bad=[];talk(`對！${t} 有 ${m} 個，是 ${t} 的 ${m} 倍`,true);render();auto(`${cn(t)}有${cn(m)}個，是${cn(t)}的${cn(m)}倍`);}
+        else{cur.phase="done";cur.res.push(cur.wrong===0);talk(PRAISE[Math.floor(Math.random()*PRAISE.length)],true);render();auto(eqSay(t,m)+"，"+chant(t,m));}}
+      else{sfx.no();cur.wrong++;cur.bad.push(v);el.classList.add("shake");talk(cur.phase==="q1"?"數數看有幾組喔！":"看看最後一組的數字！");setTimeout(render,300);}
+      break;}
+    case "cnext":nextQ();break;
+    case "playall":(async()=>{for(let m=1;m<=9;m++){if(view!=="play"||cur.phase!=="listen")break;cur.playing=m;render();await say(chant(cur.t,m));}if(cur){cur.playing=0;if(view==="play")render();}})();break;
+    case "sayrow":{const m=+el.dataset.m;cur.playing=m;render();say(chant(cur.t,m)).then(()=>{if(cur&&cur.playing===m){cur.playing=0;if(view==="play")render();}});break;}
+    case "chanttest":cur.phase="test";cur.open={};try{speechSynthesis.cancel();}catch(_){}render();talk("在心裡先說答案，再翻開看看！",true);break;
+    case "reveal":{const m=+el.dataset.m;cur.open[m]=true;sfx.tap();render();say(chant(cur.t,m));break;}
+    case "mark":{const m=+el.dataset.m;cur.marks[m]=el.dataset.v;if(el.dataset.v==="y"){sfx.ok();talk("好棒！",true);}else talk("沒關係，多念幾次就會了！");render();if(Object.keys(cur.marks).length>=9)setTimeout(finish,500);break;}
+    case "sticker":{const s=el.dataset.s;cur.result.picked=s;st.stickers.push(s);save();sfx.ok();burst(60);render();if(cur.result.dojo)setTimeout(()=>{sfx.win();burst(160);},300);break;}
+    case "again":start(cur.t,cur.mode);break;
+    default:teacherAct(a,el);
+  }
+});
+
+/* ---------- teacher ---------- */
+function bindHold(){const h=document.getElementById("hold");if(!h)return;let tm=null;
+  const on=e=>{e.preventDefault();h.classList.add("on");tm=setTimeout(()=>{h.classList.remove("on");teacherTab=0;go("teacher");},1600);};
+  const off=()=>{h.classList.remove("on");clearTimeout(tm);};
+  h.addEventListener("pointerdown",on);["pointerup","pointerleave","pointercancel"].forEach(ev=>h.addEventListener(ev,off));
+  h.addEventListener("click",()=>{if(!h.classList.contains("on"))talk("老師請按住按鈕 2 秒喔");});}
+let confirmReset=null;
+function rTeacher(){
+  const st=S.students[teacherTab]||S.students[0];if(!st)return "";
+  const set=st.set;
+  const chip=(on,act,attrs,txt)=>`<button class="chip ${on?"on":""}" data-act="${act}" ${attrs}>${txt}</button>`;
+  let h=`<div class="bar"><button class="icon-btn" data-act="who" aria-label="回首頁">↩</button><h2 style="font-size:28px">老師設定</h2><div class="spacer"></div>
+  <button class="chip ${S.sound?"on":""}" data-act="t-sound">音效 ${S.sound?"開":"關"}</button></div>
+  <div class="tabs">${S.students.map((s,i)=>chip(i===teacherTab,"t-tab",`data-i="${i}"`,s.avatar+" "+esc(s.name))).join("")}<button class="chip" data-act="t-add">＋ 新增學生</button></div>
+  <div class="panel"><h3>基本資料</h3>
+   <div class="field"><label for="t-name">名字（畫面顯示）</label><input type="text" id="t-name" value="${esc(st.name)}" maxlength="10"><button class="btn small primary" data-act="t-savename">儲存名字</button></div>
+   <div class="field"><label>頭像</label>${AVATARS.map(a=>chip(st.avatar===a,"t-av",`data-a="${a}"`,a)).join("")}</div>
+   <p class="note">建議只用暱稱或座號，不需要輸入全名。</p></div>
+  <div class="panel"><h3>練習設定</h3>
+   <div class="field"><label>快速套用</label><button class="btn small" data-act="t-preset" data-p="easy">簡單版</button><button class="btn small" data-act="t-preset" data-p="std">標準版</button>
+   <span class="note">簡單版：每回合 5 題、2 個選項、依順序出題、一開始就有圖示提示、不顯示挑戰。標準版：8 題、3 個選項、隨機出題（常錯題優先）。</span></div>
+   <div class="field"><label>開放的小島</label>${ORDER.map(t=>chip(set.tables.includes(t),"t-table",`data-t="${t}"`,t+" 的乘法")).join("")}</div>
+   <div class="field"><label>可以玩的模式</label>${Object.keys(MODES).map(k=>chip(set.modes[k],"t-mode",`data-k="${k}"`,MODES[k].nm)).join("")}</div>
+   <div class="field"><label>每回合題數</label>${[5,8,10].map(n=>chip(set.n===n,"t-n",`data-v="${n}"`,n+" 題")).join("")}<span class="note">「看圖數一數」最多 6 題</span></div>
+   <div class="field"><label>選項數量</label>${[2,3].map(n=>chip(set.choices===n,"t-c",`data-v="${n}"`,n+" 個")).join("")}</div>
+   <div class="field"><label>出題順序</label>${chip(set.order==="seq","t-order",'data-v="seq"',"依順序 ×1→×9")}${chip(set.order==="random","t-order",'data-v="random"',"隨機（常錯題優先）")}</div>
+   <div class="field"><label>圖示提示</label>${chip(set.hintFirst,"t-hint",'data-v="1"',"一開始就顯示")}${chip(!set.hintFirst,"t-hint",'data-v="0"',"答錯或按 💡 才顯示")}</div>
+   <div class="field"><label>自動念題目</label>${chip(set.autoSpeak,"t-speak",'data-v="1"',"開")}${chip(!set.autoSpeak,"t-speak",'data-v="0"',"關")}</div>
+   <div class="field"><label>挑戰秒數</label>${[60,90,120].map(n=>chip(set.sec===n,"t-sec",`data-v="${n}"`,n+" 秒")).join("")}</div>
+   <div class="field"><label>Dojo 點數</label>每完成 ${[1,2,3,4,5].map(n=>chip(set.dojoEvery===n,"t-dojo",`data-v="${n}"`,n)).join("")} 回合 = 1 點<span class="note">目前累計 ${st.dojo.earned} 點</span></div>
+  </div>`;
+  // records grid
+  let grid=`<table><thead><tr><th>乘法</th>${[1,2,3,4,5,6,7,8,9].map(m=>`<th>×${m}</th>`).join("")}</tr></thead><tbody>`;
+  ORDER.forEach(t=>{grid+=`<tr><th>${t}</th>`;for(let m=1;m<=9;m++){const f=st.facts[t+"x"+m];if(!f||!f.n){grid+=`<td class="c" style="color:#B8C4D3">－</td>`;continue;}const r=f.ok/f.n;const bg=r>=0.8?"#CFF3E2":r>=0.5?"#FFF0C2":"#FFD9D4";grid+=`<td class="c" style="background:${bg}" title="${t}×${m}：答 ${f.n} 次，自己答對 ${f.ok} 次">${f.ok}/${f.n}</td>`;}grid+=`</tr>`;});
+  grid+=`</tbody></table>`;
+  const logs=st.log.slice(-30).reverse();
+  h+=`<div class="panel"><h3>學習紀錄：每題自己答對的次數 / 作答次數</h3><div class="grid-wrap">${grid}</div>
+   <p class="note">綠色：80% 以上自己答對；黃色：50–79%；紅色：50% 以下。「自己答對」指沒有答錯也沒有用提示。看圖數一數、口訣模式不列入這張表。</p>
+   <h3>最近的練習</h3><div class="grid-wrap"><table><thead><tr><th>時間</th><th>乘法</th><th>模式</th><th>結果</th><th>花費</th></tr></thead><tbody>
+   ${logs.length?logs.map(l=>`<tr><td class="num">${l.d}</td><td>${l.t}</td><td>${MODES[l.mode].nm}</td><td>${l.mode==="challenge"?`答對 ${l.ok} 題`:l.mode==="chant"?`自評會 ${l.ok}/9`:`${l.ok}/${l.total}`}</td><td class="num">${Math.floor(l.sec/60)}分${l.sec%60}秒</td></tr>`).join(""):`<tr><td colspan="5">還沒有紀錄</td></tr>`}</tbody></table></div>
+   <div class="bar"><button class="btn small primary" data-act="t-copy">複製紀錄文字</button><button class="btn small" data-act="t-reset" style="color:#C0392B">${confirmReset===st.id?"再按一次，確定清除":"清除這位學生的紀錄"}</button>
+   ${S.students.length>1?`<button class="btn small" data-act="t-del" style="color:#C0392B">${confirmReset==="del"+st.id?"再按一次，確定刪除學生":"刪除這位學生"}</button>`:""}</div>
+   <textarea id="t-out" readonly hidden></textarea>
+   <p class="note">紀錄存在這台平板的瀏覽器裡。學校和家裡用不同平板時，紀錄會分開。</p></div>`;
+  return h;
+}
+function summary(st){let s=`【${st.name}】乘法練習紀錄（${nowStr()} 匯出）\n`;
+  ORDER.forEach(t=>{const parts=[];for(let m=1;m<=9;m++){const f=st.facts[t+"x"+m];if(f&&f.n)parts.push(`×${m} ${f.ok}/${f.n}`);}if(parts.length)s+=`${t} 的乘法：${parts.join("、")}\n`;});
+  s+=`\n最近練習：\n`;st.log.slice(-30).forEach(l=>{s+=`${l.d}　${l.t} 的乘法　${MODES[l.mode].nm}　${l.mode==="challenge"?"答對 "+l.ok+" 題":l.mode==="chant"?"自評會 "+l.ok+"/9":l.ok+"/"+l.total}\n`;});
+  s+=`\n挑戰最佳紀錄：${Object.keys(st.best).map(t=>t+" 的乘法 "+st.best[t]+" 題").join("、")||"無"}\nDojo 點數累計：${st.dojo.earned}`;return s;}
+function teacherAct(a,el){
+  const st=S.students[teacherTab];if(!st)return;const set=st.set;const keepConfirm=a==="t-reset"||a==="t-del";if(!keepConfirm)confirmReset=null;
+  switch(a){
+    case "t-tab":teacherTab=+el.dataset.i;break;
+    case "t-sound":S.sound=!S.sound;break;
+    case "t-add":S.students.push(newStudent("新同學",AVATARS[S.students.length%AVATARS.length]));teacherTab=S.students.length-1;break;
+    case "t-savename":{const v=document.getElementById("t-name").value.trim();if(v)st.name=v;break;}
+    case "t-av":st.avatar=el.dataset.a;break;
+    case "t-preset":if(el.dataset.p==="easy")Object.assign(set,{n:5,choices:2,order:"seq",hintFirst:true});else Object.assign(set,{n:8,choices:3,order:"random",hintFirst:false});set.modes.challenge=el.dataset.p!=="easy";break;
+    case "t-table":{const t=+el.dataset.t;set.tables=set.tables.includes(t)?set.tables.filter(x=>x!==t):set.tables.concat(t);break;}
+    case "t-mode":{const k=el.dataset.k;set.modes[k]=!set.modes[k];if(!Object.values(set.modes).some(Boolean))set.modes[k]=true;break;}
+    case "t-n":set.n=+el.dataset.v;break;
+    case "t-c":set.choices=+el.dataset.v;break;
+    case "t-order":set.order=el.dataset.v;break;
+    case "t-hint":set.hintFirst=el.dataset.v==="1";break;
+    case "t-speak":set.autoSpeak=el.dataset.v==="1";break;
+    case "t-sec":set.sec=+el.dataset.v;break;
+    case "t-dojo":set.dojoEvery=+el.dataset.v;if(st.dojo.p>=set.dojoEvery)st.dojo.p=0;break;
+    case "t-copy":{const txt=summary(st);const out=document.getElementById("t-out");out.hidden=false;out.value=txt;
+      const fallback=()=>{out.focus();out.select();talk("已選取文字，請按「拷貝」");};
+      try{navigator.clipboard.writeText(txt).then(()=>talk("已複製！可以貼到 IEP 或聯絡簿",true),fallback);}catch(_){fallback();}return;}
+    case "t-reset":if(confirmReset===st.id){Object.assign(st,{facts:{},log:[],stickers:[],dojo:{p:0,earned:0},best:{},stars:0});confirmReset=null;talk("已清除紀錄");}else confirmReset=st.id;break;
+    case "t-del":if(confirmReset==="del"+st.id){S.students.splice(teacherTab,1);teacherTab=0;confirmReset=null;}else confirmReset="del"+st.id;break;
+    default:return;
+  }
+  save();render();
+}
+
+render();
+talk("哈囉！我是小星星，一起來練習乘法吧！");
+})();
+</script>
+
+</body>
+</html>
