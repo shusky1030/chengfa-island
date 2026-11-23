@@ -265,7 +265,7 @@ function stars9(st,t){let h="";for(let m=1;m<=9;m++)h+=`<b class="l${factLevel(s
 
 /* ---------- screens ---------- */
 function render(){
-  const fns={who:rWho,map:rMap,play:rPlay,end:rEnd,book:rBook,teacher:rTeacher};
+  const fns={who:rWho,map:rMap,play:rPlay,end:rEnd,book:rBook,teacher:rTeacher,pin:rPin};
   app.innerHTML=(fns[view]||rWho)();
   if(sheet)app.insertAdjacentHTML("beforeend",sheet);
   bindHold();
@@ -327,9 +327,11 @@ function countList(st,set){const n=Math.min(set.n,6);if(set.order==="seq"){const
 function nextChallenge(){const st=stu();const pool=[];for(let m=1;m<=9;m++)pool.push(m);cur.list[cur.i]=pool[Math.floor(Math.random()*9)];if(cur.i>0&&cur.list[cur.i]===cur.list[cur.i-1])cur.list[cur.i]=cur.list[cur.i]%9+1;cur.bad=[];cur.done=false;}
 function startTimer(){clearInterval(timerId);timerId=setInterval(()=>{cur.left--;const bar=document.getElementById("tbar");if(bar)bar.style.width=(cur.left/stu().set.sec*100)+"%";const lt=document.getElementById("tleft");if(lt)lt.textContent=cur.left;if(cur.left<=0){clearInterval(timerId);finish();}},1000);}
 function speakQ(){const t=cur.t,m=cur.list[cur.i],c=CTX[t];
-  if(cur.mode==="count")auto(`1${c.g}${c.nm}有${cn(t)}${c.it}，一${c.g}一${c.g}點點看`);
+  if(cur.mode==="count"){if(stu().set.autoSpeak){const me=cur;me.listening=true;say(countSay(t,m)).then(()=>{me.listening=false;});}}
   else auto(cn(t)+"乘以"+cn(m)+"等於多少？");}
 
+function qty(n){return n===2?"兩":cn(n);}
+function countSay(t,m,questionOnly){const c=CTX[t];const q=`一${c.g}${c.nm}有${qty(t)}${c.it}，${qty(m)}${c.g}共有幾${c.it}？`;return questionOnly?q:q+`一${c.g}一${c.g}點點看，邊點邊數！`;}
 function makeChoices(t,m,k){const p=t*m;const cand=[t*(m-1),t*(m+1),p+1,p-1,t*(m+2),p+2].filter(x=>x>0&&x!==p);const uniq=[...new Set(cand)];return shuffle([p].concat(uniq.slice(0,k-1)));}
 function makeNumChoices(m,k){const c=[m-1,m+1,m+2,m-2].filter(x=>x>=1&&x<=9);return shuffle([m].concat(c.slice(0,k-1)));}
 
@@ -481,12 +483,12 @@ app.addEventListener("click",e=>{
     case "island":{const t=+el.dataset.t;if(!st.set.tables.includes(t)){talk("這座小島還沒開放，請老師幫你打開喔！");return;}sfx.tap();sheet=modeSheet(t);render();break;}
     case "start":sheet=null;start(+el.dataset.t,el.dataset.m);break;
     case "quit":clearInterval(timerId);try{speechSynthesis.cancel();}catch(_){}go("map");break;
-    case "speak":if(cur.mode==="count"){const c=CTX[cur.t];say(`1${c.g}${c.nm}有${cn(cur.t)}${c.it}，${cn(cur.list[cur.i])}${c.g}共有幾${c.it}？`);}else say(cn(cur.t)+"乘以"+cn(cur.list[cur.i])+"等於多少？");break;
+    case "speak":if(cur.mode==="count"){say(countSay(cur.t,cur.list[cur.i],cur.phase!=="tap"));}else say(cn(cur.t)+"乘以"+cn(cur.list[cur.i])+"等於多少？");break;
     case "hint":cur.used=true;cur.hint=Math.min(3,cur.hint+1);render();if(cur.hint>=3)say("口訣，"+chant(cur.t,cur.list[cur.i]));else talk("看看提示，慢慢數！");break;
     case "ans":answer(+el.dataset.v,el);break;
     case "key":{const k=el.dataset.k;if(cur.done)return;if(k==="del")cur.pad=cur.pad.slice(0,-1);else if(k==="ok"){if(cur.pad)answer(+cur.pad,document.querySelector(".eq"));return;}else if(cur.pad.length<2)cur.pad+=k;sfx.tap();render();break;}
     case "next":nextQ();break;
-    case "tapgrp":{if(cur.phase!=="tap")return;const t=cur.t,m=cur.list[cur.i];cur.tapped++;sfx.tap();say(cn(t*cur.tapped));if(cur.tapped>=m){cur.phase="q1";cur.opts=null;setTimeout(()=>auto(cn(t)+"有幾個？"),700);}render();break;}
+    case "tapgrp":{if(cur.phase!=="tap")return;if(cur.listening){talk("先聽完題目，再開始點喔！");return;}const t=cur.t,m=cur.list[cur.i];cur.tapped++;sfx.tap();say(cn(t*cur.tapped));if(cur.tapped>=m){cur.phase="q1";cur.opts=null;setTimeout(()=>auto(cn(t)+"有幾個？"),700);}render();break;}
     case "cans":{const t=cur.t,m=cur.list[cur.i],v=+el.dataset.v,want=cur.phase==="q1"?m:t*m;
       if(v===want){sfx.ok();burst(30);if(cur.phase==="q1"){cur.phase="q2";cur.opts=null;cur.bad=[];talk(`對！${t} 有 ${m} 個，是 ${t} 的 ${m} 倍`,true);render();auto(`${cn(t)}有${cn(m)}個，是${cn(t)}的${cn(m)}倍`);}
         else{cur.phase="done";cur.res.push(cur.wrong===0);talk(PRAISE[Math.floor(Math.random()*PRAISE.length)],true);render();auto(eqSay(t,m)+"，"+chant(t,m));}}
@@ -500,23 +502,68 @@ app.addEventListener("click",e=>{
     case "mark":{const m=+el.dataset.m;cur.marks[m]=el.dataset.v;if(el.dataset.v==="y"){sfx.ok();talk("好棒！",true);}else talk("沒關係，多念幾次就會了！");render();if(Object.keys(cur.marks).length>=9)setTimeout(finish,500);break;}
     case "sticker":{const s=el.dataset.s;cur.result.picked=s;st.stickers.push(s);save();sfx.ok();burst(60);render();if(cur.result.dojo)setTimeout(()=>{sfx.win();burst(160);},300);break;}
     case "again":start(cur.t,cur.mode);break;
+    case "pk":pinKey(el.dataset.k);break;
+    case "pin-forgot":pinSt={mode:"recover",buf:"",msg:"設定密碼時抄下的 6 位數"};render();break;
+    case "pin-back":pinSt={mode:"enter",buf:""};render();break;
+    case "pin-done":pinSt=null;teacherTab=0;go("teacher");break;
+    case "t-pin":pinSt={mode:"set1",buf:"",msg:"請輸入新的 4 位數密碼"};go("pin");break;
     default:teacherAct(a,el);
   }
 });
 
 /* ---------- teacher ---------- */
 function bindHold(){const h=document.getElementById("hold");if(!h)return;let tm=null;
-  const on=e=>{e.preventDefault();h.classList.add("on");tm=setTimeout(()=>{h.classList.remove("on");teacherTab=0;go("teacher");},1600);};
+  const on=e=>{e.preventDefault();h.classList.add("on");tm=setTimeout(()=>{h.classList.remove("on");pinSt={mode:S.pinH?"enter":"set1",buf:"",msg:S.pinH?"":"第一次使用，請設定 4 位數的老師密碼"};go("pin");},1600);};
   const off=()=>{h.classList.remove("on");clearTimeout(tm);};
   h.addEventListener("pointerdown",on);["pointerup","pointerleave","pointercancel"].forEach(ev=>h.addEventListener(ev,off));
   h.addEventListener("click",()=>{if(!h.classList.contains("on"))talk("老師請按住按鈕 2 秒喔");});}
+/* ---------- teacher PIN (stored per tablet) ---------- */
+let pinSt=null,pinFails=0,pinLockUntil=0;
+function hashPin(s){let h=5381;s="mul-island:"+s;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(36);}
+const PIN_TITLE={set1:"設定老師密碼",set2:"再輸入一次確認",enter:"請輸入老師密碼",recover:"請輸入 6 位數備用碼",showcode:"請抄下備用碼"};
+function rPin(){
+  const p=pinSt,len=p.mode==="recover"?6:4;
+  if(p.mode==="showcode")return `<div class="stage" style="gap:16px"><h2 style="font-size:28px">🔑 ${PIN_TITLE.showcode}</h2>
+    <div class="sub" style="font-size:18px;text-align:center">忘記密碼時，要用這組備用碼重新設定。<br>請抄在學生看不到的地方，這組數字只會出現這一次。</div>
+    <div class="num" style="font-size:64px;font-weight:800;letter-spacing:.18em;color:var(--sea-deep)">${p.code}</div>
+    <button class="btn go" data-act="pin-done">我抄好了，進入設定</button></div>`;
+  const dots=Array.from({length:len},(_,i)=>`<b style="width:26px;height:26px;border-radius:50%;display:inline-block;background:${i<p.buf.length?"var(--sea)":"var(--off)"}"></b>`).join("");
+  return `<div class="bar"><button class="icon-btn" data-act="who" aria-label="回首頁">↩</button><h2 style="font-size:26px">🔒 ${PIN_TITLE[p.mode]}</h2></div>
+  <div class="stage" style="gap:16px"><div style="display:flex;gap:14px">${dots}</div>
+  <div class="sub" style="min-height:1.6em;font-size:18px;text-align:center;${p.err?"color:var(--coral);font-weight:900":""}">${esc(p.err||p.msg||"")}</div>
+  <div class="pad">${[1,2,3,4,5,6,7,8,9].map(n=>`<button data-act="pk" data-k="${n}">${n}</button>`).join("")}<button class="del" data-act="pk" data-k="del" aria-label="刪除">⌫</button><button data-act="pk" data-k="0">0</button><span></span></div>
+  ${p.mode==="enter"?`<button class="btn small" data-act="pin-forgot">忘記密碼？用備用碼重設</button>`:""}
+  ${p.mode==="recover"?`<button class="btn small" data-act="pin-back">回到輸入密碼</button>`:""}</div>`;
+}
+function pinKey(k){
+  const p=pinSt,len=p.mode==="recover"?6:4;p.err="";
+  if(k==="del"){p.buf=p.buf.slice(0,-1);render();return;}
+  if(p.buf.length>=len)return;
+  p.buf+=k;sfx.tap();render();
+  if(p.buf.length<len)return;
+  setTimeout(()=>{
+    const v=p.buf;p.buf="";
+    if(p.mode==="enter"||p.mode==="recover"){
+      if(Date.now()<pinLockUntil){p.err="輸入錯太多次，請等 30 秒再試";render();return;}
+      const ok=p.mode==="enter"?hashPin(v)===S.pinH:hashPin("r"+v)===S.recH;
+      if(ok){pinFails=0;if(p.mode==="enter"){teacherTab=0;go("teacher");}else{pinSt={mode:"set1",buf:"",msg:"備用碼正確，請設定新的 4 位數密碼"};render();}return;}
+      pinFails++;if(pinFails>=5){pinFails=0;pinLockUntil=Date.now()+30000;p.err="輸入錯太多次，請等 30 秒再試";}else p.err=p.mode==="enter"?"密碼不對，請再試一次":"備用碼不對，請再試一次";
+      sfx.no();render();return;}
+    if(p.mode==="set1"){pinSt={mode:"set2",buf:"",first:v,msg:"請再輸入一次剛剛的密碼"};render();return;}
+    if(p.mode==="set2"){
+      if(v!==p.first){pinSt={mode:"set1",buf:"",err:"兩次輸入不一樣，請重新設定"};sfx.no();render();return;}
+      const code=String(Math.floor(100000+Math.random()*900000));
+      S.pinH=hashPin(v);S.recH=hashPin("r"+code);save();
+      pinSt={mode:"showcode",code};sfx.ok();render();}
+  },180);
+}
 let confirmReset=null;
 function rTeacher(){
   const st=S.students[teacherTab]||S.students[0];if(!st)return "";
   const set=st.set;
   const chip=(on,act,attrs,txt)=>`<button class="chip ${on?"on":""}" data-act="${act}" ${attrs}>${txt}</button>`;
   let h=`<div class="bar"><button class="icon-btn" data-act="who" aria-label="回首頁">↩</button><h2 style="font-size:28px">老師設定</h2><div class="spacer"></div>
-  <button class="chip ${S.sound?"on":""}" data-act="t-sound">音效 ${S.sound?"開":"關"}</button></div>
+  <button class="chip ${S.sound?"on":""}" data-act="t-sound">音效 ${S.sound?"開":"關"}</button><button class="chip" data-act="t-pin">🔒 更改密碼</button></div>
   <div class="tabs">${S.students.map((s,i)=>chip(i===teacherTab,"t-tab",`data-i="${i}"`,s.avatar+" "+esc(s.name))).join("")}<button class="chip" data-act="t-add">＋ 新增學生</button></div>
   <div class="panel"><h3>基本資料</h3>
    <div class="field"><label for="t-name">名字（畫面顯示）</label><input type="text" id="t-name" value="${esc(st.name)}" maxlength="10"><button class="btn small primary" data-act="t-savename">儲存名字</button></div>
